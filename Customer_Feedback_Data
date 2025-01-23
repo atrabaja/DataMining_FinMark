@@ -1,19 +1,42 @@
-# Import libraries
+# ===== Step 1: Import Required Libraries =====
 import pandas as pd
 
-# Input csv file
+# ===== Step 2: Load the Customer Feedback Dataset =====
+# Load customer feedback data into a pandas DataFrame
 customer_feedback_data = pd.read_csv("C:\\Users\\Angel Rabaja\\FinMark\\customer_feedback.csv")
 
-# Handle missing values for Satisfaction Score
+# ===== Step 3: Handle Missing Values =====
+# Fill missing values in Satisfaction_Score with the mean
 customer_feedback_data['Satisfaction_Score'] = customer_feedback_data['Satisfaction_Score'].fillna(customer_feedback_data['Satisfaction_Score'].mean())
 
-# Detect and handle outliers using IQR method for Satisfaction Score
-Q1 = customer_feedback_data['Satisfaction_Score'].quantile(0.25)
-Q3 = customer_feedback_data['Satisfaction_Score'].quantile(0.75)
-IQR = Q3 - Q1
-lower_bound = Q1 - 1.5 * IQR
-upper_bound = Q3 + 1.5 * IQR
+# Explanation:
+# - Filling missing values with the mean ensures the data remains complete and usable while minimizing distortion.
+
+# ===== Step 4: Handle Outliers =====
+# Use the Interquartile Range (IQR) method to cap outliers in Satisfaction_Score
+Q1 = customer_feedback_data['Satisfaction_Score'].quantile(0.25)  # 25th percentile
+Q3 = customer_feedback_data['Satisfaction_Score'].quantile(0.75)  # 75th percentile
+IQR = Q3 - Q1  # Interquartile Range
+upper_bound = Q3 + 1.5 * IQR  # Upper limit for outliers
 customer_feedback_data['Satisfaction_Score'] = customer_feedback_data['Satisfaction_Score'].apply(lambda x: min(x, upper_bound))
 
-# Output cleaned data
+# Explanation:
+# - Outliers in Satisfaction_Score are capped to the upper bound defined by the IQR method to reduce their influence on analysis.
+
+# ===== Step 5: Data Review =====
+# Display summary statistics for numerical columns
+print("Summary Statistics for Customer Feedback Data:")
+print(customer_feedback_data.describe())
+
+# Check unique values in categorical columns
+print("\nUnique Values in Feedback Type (if applicable):")
+if 'Feedback_Type' in customer_feedback_data.columns:
+    print(customer_feedback_data['Feedback_Type'].value_counts())
+
+# ===== Step 6: Save Processed Customer Feedback Data =====
+# Save the cleaned customer feedback data for future use
+customer_feedback_data.to_csv("C:\\Users\\Angel Rabaja\\FinMark\\customer_feedback_cleaned.csv", index=False)
+
+# Output the first few rows of the processed customer feedback data
+print("Processed Customer Feedback Data:")
 print(customer_feedback_data.head())
