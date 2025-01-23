@@ -1,12 +1,31 @@
-# Import libraries
+# ===== Step 1: Import Required Libraries =====
 import pandas as pd
 
-# Input csv file
+# ===== Step 2: Load the Product Offering Dataset =====
+# Load product offering data into a pandas DataFrame
 product_offering_data = pd.read_csv("C:\\Users\\Angel Rabaja\\FinMark\\product_offerings.csv")
 
-# Handle missing values in target demographics
+# ===== Step 3: Handle Missing Values =====
+# Fill missing values in Target_Age_Group and Target_Income_Group with "Unknown"
 product_offering_data['Target_Age_Group'] = product_offering_data['Target_Age_Group'].fillna('Unknown')
 product_offering_data['Target_Income_Group'] = product_offering_data['Target_Income_Group'].fillna('Unknown')
 
-# Output cleaned data
+# Explanation:
+# - Filling with "Unknown" preserves the data structure while acknowledging the absence of specific information.
+
+# ===== Step 4: Data Review =====
+# Display summary statistics and unique value counts for categorical columns
+print("Unique Values in Target_Age_Group:")
+print(product_offering_data['Target_Age_Group'].value_counts())
+print("\nUnique Values in Target_Income_Group:")
+print(product_offering_data['Target_Income_Group'].value_counts())
+print("\nSummary of Product Offering Data:")
+print(product_offering_data.describe(include='all'))
+
+# ===== Step 5: Save Processed Product Offering Data =====
+# Save the cleaned product offering data for future use
+product_offering_data.to_csv("C:\\Users\\Angel Rabaja\\FinMark\\product_offering_cleaned.csv", index=False)
+
+# Output the first few rows of the processed product offering data
+print("Processed Product Offering Data:")
 print(product_offering_data.head())
