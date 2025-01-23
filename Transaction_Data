@@ -1,27 +1,47 @@
-# Import libraries
+# ===== Step 1: Import Required Libraries =====
 import pandas as pd
 
-# Input csv file
+# ===== Step 2: Load the Transaction Dataset =====
+# Load transaction data into a pandas DataFrame
 transaction_data = pd.read_csv("C:\\Users\\Angel Rabaja\\FinMark\\customer_transactions_contaminated.csv")
 
-# Handle missing values for Transaction Amount
+# ===== Step 3: Handle Missing Values =====
+# Fill missing values in Transaction_Amount with the median value
 transaction_data['Transaction_Amount'] = transaction_data['Transaction_Amount'].fillna(transaction_data['Transaction_Amount'].median())
 
-# Detect and handle outliers using IQR method
-Q1 = transaction_data['Transaction_Amount'].quantile(0.25)
-Q3 = transaction_data['Transaction_Amount'].quantile(0.75)
-IQR = Q3 - Q1
-lower_bound = Q1 - 1.5 * IQR
-upper_bound = Q3 + 1.5 * IQR
+# Explanation:
+# - Filling with the median is robust to outliers and ensures missing values do not distort the dataset.
+
+# ===== Step 4: Handle Outliers =====
+# Use the Interquartile Range (IQR) method to cap outliers in Transaction_Amount
+Q1 = transaction_data['Transaction_Amount'].quantile(0.25)  # 25th percentile
+Q3 = transaction_data['Transaction_Amount'].quantile(0.75)  # 75th percentile
+IQR = Q3 - Q1  # Interquartile Range
+upper_bound = Q3 + 1.5 * IQR  # Upper limit for outliers
 transaction_data['Transaction_Amount'] = transaction_data['Transaction_Amount'].apply(lambda x: min(x, upper_bound))
 
-# Feature engineering
-# Aggregating transactions per customer
+# Explanation:
+# - Any values above the upper bound are capped to prevent extreme outliers from skewing the data.
+
+# ===== Step 5: Aggregate Transaction Data by Customer =====
+# Group the data by Customer_ID and create aggregated features
 transaction_summary = transaction_data.groupby('Customer_ID').agg(
-    Total_Transaction_Amount=('Transaction_Amount', 'sum'),
-    Avg_Transaction_Amount=('Transaction_Amount', 'mean'),
-    Transaction_Count=('Transaction_ID', 'count')
+    Total_Transaction_Amount=('Transaction_Amount', 'sum'),  # Total spending per customer
+    Avg_Transaction_Amount=('Transaction_Amount', 'mean'),  # Average transaction size
+    Transaction_Count=('Transaction_ID', 'count')  # Total number of transactions
 ).reset_index()
 
-# Output cleaned data
+# Explanation:
+# - `Total_Transaction_Amount` gives the total monetary value of all transactions for a customer.
+# - `Avg_Transaction_Amount` reflects the typical transaction size for each customer.
+# - `Transaction_Count` measures how many transactions each customer has made.
+
+# ===== Step 6: Save Processed Transaction Data =====
+transaction_summary.to_csv("C:\\Users\\Angel Rabaja\\FinMark\\transaction_summary_cleaned.csv", index=False)
+
+# Output the transaction summary for review
+print("Processed Transaction Summary:")
 print(transaction_summary.head())
+
+# Explanation:
+# - Save the processed transaction data with customer-level features for further analysis.
