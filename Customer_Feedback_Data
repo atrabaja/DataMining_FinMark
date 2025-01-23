@@ -1,0 +1,19 @@
+# Import libraries
+import pandas as pd
+
+# Input csv file
+customer_feedback_data = pd.read_csv("C:\\Users\\Angel Rabaja\\FinMark\\customer_feedback.csv")
+
+# Handle missing values for Satisfaction Score
+customer_feedback_data['Satisfaction_Score'] = customer_feedback_data['Satisfaction_Score'].fillna(customer_feedback_data['Satisfaction_Score'].mean())
+
+# Detect and handle outliers using IQR method for Satisfaction Score
+Q1 = customer_feedback_data['Satisfaction_Score'].quantile(0.25)
+Q3 = customer_feedback_data['Satisfaction_Score'].quantile(0.75)
+IQR = Q3 - Q1
+lower_bound = Q1 - 1.5 * IQR
+upper_bound = Q3 + 1.5 * IQR
+customer_feedback_data['Satisfaction_Score'] = customer_feedback_data['Satisfaction_Score'].apply(lambda x: min(x, upper_bound))
+
+# Output cleaned data
+print(customer_feedback_data.head())
