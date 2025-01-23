@@ -1,0 +1,104 @@
+# ===== Step 1: Import Required Libraries =====
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.preprocessing import MinMaxScaler
+
+# ===== Step 2: Load Datasets =====
+transaction_data = pd.read_csv("C:\\Users\\Angel Rabaja\\FinMark\\customer_transactions_contaminated.csv")
+product_offering_data = pd.read_csv("C:\\Users\\Angel Rabaja\\FinMark\\product_offerings.csv")
+customer_feedback_data = pd.read_csv("C:\\Users\\Angel Rabaja\\FinMark\\customer_feedback.csv")
+
+# ===== Step 3: Preprocessing Transaction Data =====
+transaction_data['Transaction_Amount'] = transaction_data['Transaction_Amount'].fillna(transaction_data['Transaction_Amount'].median())
+
+# Handle outliers in Transaction_Amount using IQR
+Q1 = transaction_data['Transaction_Amount'].quantile(0.25)
+Q3 = transaction_data['Transaction_Amount'].quantile(0.75)
+IQR = Q3 - Q1
+upper_bound = Q3 + 1.5 * IQR
+transaction_data['Transaction_Amount'] = transaction_data['Transaction_Amount'].apply(lambda x: min(x, upper_bound))
+
+# Aggregate transaction data by Customer_ID
+transaction_summary = transaction_data.groupby('Customer_ID').agg(
+    Total_Transaction_Amount=('Transaction_Amount', 'sum'),
+    Avg_Transaction_Amount=('Transaction_Amount', 'mean'),
+    Transaction_Count=('Transaction_ID', 'count')
+).reset_index()
+
+# ===== Step 4: Preprocessing Product Offering Data =====
+product_offering_data['Target_Age_Group'] = product_offering_data['Target_Age_Group'].fillna('Unknown')
+product_offering_data['Target_Income_Group'] = product_offering_data['Target_Income_Group'].fillna('Unknown')
+
+# ===== Step 5: Preprocessing Customer Feedback Data =====
+customer_feedback_data['Satisfaction_Score'] = customer_feedback_data['Satisfaction_Score'].fillna(customer_feedback_data['Satisfaction_Score'].mean())
+
+# Handle outliers in Satisfaction_Score using IQR
+Q1 = customer_feedback_data['Satisfaction_Score'].quantile(0.25)
+Q3 = customer_feedback_data['Satisfaction_Score'].quantile(0.75)
+IQR = Q3 - Q1
+upper_bound = Q3 + 1.5 * IQR
+customer_feedback_data['Satisfaction_Score'] = customer_feedback_data['Satisfaction_Score'].apply(lambda x: min(x, upper_bound))
+
+# ===== Step 6: Merge Datasets =====
+customer_data = pd.merge(customer_feedback_data, transaction_summary, on='Customer_ID', how='left')
+
+# Handle missing values after merge
+customer_data[['Total_Transaction_Amount', 'Avg_Transaction_Amount', 'Transaction_Count']] = customer_data[
+    ['Total_Transaction_Amount', 'Avg_Transaction_Amount', 'Transaction_Count']
+].fillna(0)
+
+# Remove duplicates
+customer_data.drop_duplicates(inplace=True)
+
+# ===== Step 7: EDA =====
+
+# 1. Summary Statistics
+print("Summary Statistics for Customer Data:")
+print(customer_data.describe())
+
+# 2. Distribution of Satisfaction Score
+plt.figure(figsize=(10, 6))
+sns.histplot(customer_data['Satisfaction_Score'], kde=True, color='blue', bins=30)
+plt.title('Distribution of Satisfaction Score')
+plt.xlabel('Satisfaction Score')
+plt.ylabel('Frequency')
+plt.show()
+
+# 3. Correlation Heatmap
+plt.figure(figsize=(10, 8))
+sns.heatmap(customer_data[['Satisfaction_Score', 'Total_Transaction_Amount', 'Avg_Transaction_Amount', 'Transaction_Count']].corr(), annot=True, cmap='coolwarm')
+plt.title('Correlation Heatmap')
+plt.show()
+
+# 4. Total Transaction Amount Distribution
+plt.figure(figsize=(10, 6))
+sns.boxplot(x=customer_data['Total_Transaction_Amount'], color='green')
+plt.title('Boxplot of Total Transaction Amount')
+plt.xlabel('Total Transaction Amount')
+plt.show()
+
+# 5. Pairplot of Numerical Features
+sns.pairplot(customer_data[['Satisfaction_Score', 'Total_Transaction_Amount', 'Avg_Transaction_Amount', 'Transaction_Count']])
+plt.suptitle('Pairplot of Numerical Features', y=1.02)
+plt.show()
+
+# 6. Bar Plot for Transaction Counts
+plt.figure(figsize=(10, 6))
+sns.barplot(x=customer_data['Transaction_Count'].value_counts().index, y=customer_data['Transaction_Count'].value_counts().values, palette='coolwarm')
+plt.title('Transaction Count Distribution')
+plt.xlabel('Transaction Count')
+plt.ylabel('Frequency')
+plt.show()
+
+# ===== Step 8: Feature Scaling =====
+scaler = MinMaxScaler()
+numerical_features = ['Satisfaction_Score', 'Total_Transaction_Amount', 'Avg_Transaction_Amount', 'Transaction_Count']
+customer_data[numerical_features] = scaler.fit_transform(customer_data[numerical_features])
+
+# ===== Step 9: Save the Final Preprocessed Dataset =====
+customer_data.to_csv("C:\\Users\\Angel Rabaja\\FinMark\\final_customer_data_cleaned.csv", index=False)
+
+# Output the final processed dataset
+print("Final Preprocessed Dataset:")
+print(customer_data.head())
