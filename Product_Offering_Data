@@ -1,0 +1,12 @@
+# Import libraries
+import pandas as pd
+
+# Input csv file
+product_offering_data = pd.read_csv("C:\\Users\\Angel Rabaja\\FinMark\\product_offerings.csv")
+
+# Handle missing values in target demographics
+product_offering_data['Target_Age_Group'] = product_offering_data['Target_Age_Group'].fillna('Unknown')
+product_offering_data['Target_Income_Group'] = product_offering_data['Target_Income_Group'].fillna('Unknown')
+
+# Output cleaned data
+print(product_offering_data.head())
