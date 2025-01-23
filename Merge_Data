@@ -8,7 +8,7 @@ product_offering_data = pd.read_csv("C:\\Users\\Angel Rabaja\\FinMark\\product_o
 customer_feedback_data = pd.read_csv("C:\\Users\\Angel Rabaja\\FinMark\\customer_feedback.csv")
 
 # ===== Preprocessing Transaction Data =====
-# Fill missing values in Transaction Amount
+# Fill missing values in Transaction Amount with the median
 transaction_data['Transaction_Amount'] = transaction_data['Transaction_Amount'].fillna(transaction_data['Transaction_Amount'].median())
 
 # Handle outliers in Transaction Amount using IQR
@@ -26,12 +26,12 @@ transaction_summary = transaction_data.groupby('Customer_ID').agg(
 ).reset_index()
 
 # ===== Preprocessing Product Offering Data =====
-# Fill missing values in Target_Age_Group and Target_Income_Group
+# Fill missing values in Target_Age_Group and Target_Income_Group with "Unknown"
 product_offering_data['Target_Age_Group'] = product_offering_data['Target_Age_Group'].fillna('Unknown')
 product_offering_data['Target_Income_Group'] = product_offering_data['Target_Income_Group'].fillna('Unknown')
 
 # ===== Preprocessing Customer Feedback Data =====
-# Fill missing values in Satisfaction Score
+# Fill missing values in Satisfaction Score with the mean
 customer_feedback_data['Satisfaction_Score'] = customer_feedback_data['Satisfaction_Score'].fillna(customer_feedback_data['Satisfaction_Score'].mean())
 
 # Handle outliers in Satisfaction Score using IQR
@@ -45,15 +45,24 @@ customer_feedback_data['Satisfaction_Score'] = customer_feedback_data['Satisfact
 # Merge customer feedback data with transaction summary
 customer_data = pd.merge(customer_feedback_data, transaction_summary, on='Customer_ID', how='left')
 
+# ===== Handle Missing Values After Merge =====
+# Fill missing values in transaction features with 0 (for customers with no transactions)
+customer_data[['Total_Transaction_Amount', 'Avg_Transaction_Amount', 'Transaction_Count']] = customer_data[
+    ['Total_Transaction_Amount', 'Avg_Transaction_Amount', 'Transaction_Count']
+].fillna(0)
+
+# ===== Remove Duplicates =====
+customer_data.drop_duplicates(inplace=True)
+
 # ===== Feature Scaling =====
 # Normalize numerical features for clustering
 scaler = MinMaxScaler()
 numerical_features = ['Satisfaction_Score', 'Total_Transaction_Amount', 'Avg_Transaction_Amount', 'Transaction_Count']
 customer_data[numerical_features] = scaler.fit_transform(customer_data[numerical_features])
 
-# Output final processed dataset
-print("Final Merged Dataset:")
-print(customer_data.head())
+# ===== Save the Final Preprocessed Dataset =====
+customer_data.to_csv("C:\\Users\\Angel Rabaja\\FinMark\\final_customer_data_cleaned.csv", index=False)
 
-# Save the final dataset to a CSV file
-customer_data.to_csv("C:\\Users\\Angel Rabaja\\FinMark\\final_customer_data.csv", index=False)
+# Output the final processed dataset
+print("Final Preprocessed Dataset:")
+print(customer_data.head())
