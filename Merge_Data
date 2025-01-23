@@ -1,68 +1,46 @@
-# Import libraries
+# ===== Step 1: Import Required Libraries =====
 import pandas as pd
-from sklearn.preprocessing import MinMaxScaler
 
-# Load datasets
-transaction_data = pd.read_csv("C:\\Users\\Angel Rabaja\\FinMark\\customer_transactions_contaminated.csv")
-product_offering_data = pd.read_csv("C:\\Users\\Angel Rabaja\\FinMark\\product_offerings.csv")
-customer_feedback_data = pd.read_csv("C:\\Users\\Angel Rabaja\\FinMark\\customer_feedback.csv")
+# ===== Step 2: Load Processed Datasets =====
+# Load the cleaned datasets
+transaction_summary = pd.read_csv("C:\\Users\\Angel Rabaja\\FinMark\\transaction_summary_cleaned.csv")
+product_offering_data = pd.read_csv("C:\\Users\\Angel Rabaja\\FinMark\\product_offering_cleaned.csv")
+customer_feedback_data = pd.read_csv("C:\\Users\\Angel Rabaja\\FinMark\\customer_feedback_cleaned.csv")
 
-# ===== Preprocessing Transaction Data =====
-# Fill missing values in Transaction Amount with the median
-transaction_data['Transaction_Amount'] = transaction_data['Transaction_Amount'].fillna(transaction_data['Transaction_Amount'].median())
-
-# Handle outliers in Transaction Amount using IQR
-Q1 = transaction_data['Transaction_Amount'].quantile(0.25)
-Q3 = transaction_data['Transaction_Amount'].quantile(0.75)
-IQR = Q3 - Q1
-upper_bound = Q3 + 1.5 * IQR
-transaction_data['Transaction_Amount'] = transaction_data['Transaction_Amount'].apply(lambda x: min(x, upper_bound))
-
-# Aggregate transaction data by Customer_ID
-transaction_summary = transaction_data.groupby('Customer_ID').agg(
-    Total_Transaction_Amount=('Transaction_Amount', 'sum'),
-    Avg_Transaction_Amount=('Transaction_Amount', 'mean'),
-    Transaction_Count=('Transaction_ID', 'count')
-).reset_index()
-
-# ===== Preprocessing Product Offering Data =====
-# Fill missing values in Target_Age_Group and Target_Income_Group with "Unknown"
-product_offering_data['Target_Age_Group'] = product_offering_data['Target_Age_Group'].fillna('Unknown')
-product_offering_data['Target_Income_Group'] = product_offering_data['Target_Income_Group'].fillna('Unknown')
-
-# ===== Preprocessing Customer Feedback Data =====
-# Fill missing values in Satisfaction Score with the mean
-customer_feedback_data['Satisfaction_Score'] = customer_feedback_data['Satisfaction_Score'].fillna(customer_feedback_data['Satisfaction_Score'].mean())
-
-# Handle outliers in Satisfaction Score using IQR
-Q1 = customer_feedback_data['Satisfaction_Score'].quantile(0.25)
-Q3 = customer_feedback_data['Satisfaction_Score'].quantile(0.75)
-IQR = Q3 - Q1
-upper_bound = Q3 + 1.5 * IQR
-customer_feedback_data['Satisfaction_Score'] = customer_feedback_data['Satisfaction_Score'].apply(lambda x: min(x, upper_bound))
-
-# ===== Merge Datasets =====
-# Merge customer feedback data with transaction summary
+# ===== Step 3: Merge Customer Feedback and Transaction Summary =====
+# Merge customer feedback data with transaction summary using Customer_ID
 customer_data = pd.merge(customer_feedback_data, transaction_summary, on='Customer_ID', how='left')
 
-# ===== Handle Missing Values After Merge =====
-# Fill missing values in transaction features with 0 (for customers with no transactions)
+# Explanation:
+# - Performs a left join to ensure all customers in the feedback dataset are retained.
+# - Customers without transaction data will have missing values in the transaction-related fields.
+
+# ===== Step 4: Handle Missing Values After Merge =====
+# Fill missing values in transaction features with 0 (indicating no transactions)
 customer_data[['Total_Transaction_Amount', 'Avg_Transaction_Amount', 'Transaction_Count']] = customer_data[
     ['Total_Transaction_Amount', 'Avg_Transaction_Amount', 'Transaction_Count']
 ].fillna(0)
 
-# ===== Remove Duplicates =====
+# Explanation:
+# - Ensures customers without transactions are represented with zeros in the transaction-related columns.
+
+# ===== Step 5: Merge Product Offering Data (if applicable) =====
+# If product-related data is needed, you can merge it here (optional)
+# For example, you could merge on Product_ID or other relevant keys
+# Note: Ensure keys like Product_ID exist in both datasets
+# customer_data = pd.merge(customer_data, product_offering_data, on='Product_ID', how='left')
+
+# Explanation:
+# - This step is optional and depends on whether product-level details are relevant to the analysis.
+
+# ===== Step 6: Remove Duplicates =====
+# Remove any duplicate rows if present
 customer_data.drop_duplicates(inplace=True)
 
-# ===== Feature Scaling =====
-# Normalize numerical features for clustering
-scaler = MinMaxScaler()
-numerical_features = ['Satisfaction_Score', 'Total_Transaction_Amount', 'Avg_Transaction_Amount', 'Transaction_Count']
-customer_data[numerical_features] = scaler.fit_transform(customer_data[numerical_features])
+# ===== Step 7: Save Merged Dataset =====
+# Save the merged dataset as a CSV file for further analysis
+customer_data.to_csv("C:\\Users\\Angel Rabaja\\FinMark\\merged_customer_data.csv", index=False)
 
-# ===== Save the Final Preprocessed Dataset =====
-customer_data.to_csv("C:\\Users\\Angel Rabaja\\FinMark\\final_customer_data_cleaned.csv", index=False)
-
-# Output the final processed dataset
-print("Final Preprocessed Dataset:")
+# Output the first few rows of the merged dataset
+print("Merged Customer Data:")
 print(customer_data.head())
