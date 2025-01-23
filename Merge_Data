@@ -1,0 +1,59 @@
+# Import libraries
+import pandas as pd
+from sklearn.preprocessing import MinMaxScaler
+
+# Load datasets
+transaction_data = pd.read_csv("C:\\Users\\Angel Rabaja\\FinMark\\customer_transactions_contaminated.csv")
+product_offering_data = pd.read_csv("C:\\Users\\Angel Rabaja\\FinMark\\product_offerings.csv")
+customer_feedback_data = pd.read_csv("C:\\Users\\Angel Rabaja\\FinMark\\customer_feedback.csv")
+
+# ===== Preprocessing Transaction Data =====
+# Fill missing values in Transaction Amount
+transaction_data['Transaction_Amount'] = transaction_data['Transaction_Amount'].fillna(transaction_data['Transaction_Amount'].median())
+
+# Handle outliers in Transaction Amount using IQR
+Q1 = transaction_data['Transaction_Amount'].quantile(0.25)
+Q3 = transaction_data['Transaction_Amount'].quantile(0.75)
+IQR = Q3 - Q1
+upper_bound = Q3 + 1.5 * IQR
+transaction_data['Transaction_Amount'] = transaction_data['Transaction_Amount'].apply(lambda x: min(x, upper_bound))
+
+# Aggregate transaction data by Customer_ID
+transaction_summary = transaction_data.groupby('Customer_ID').agg(
+    Total_Transaction_Amount=('Transaction_Amount', 'sum'),
+    Avg_Transaction_Amount=('Transaction_Amount', 'mean'),
+    Transaction_Count=('Transaction_ID', 'count')
+).reset_index()
+
+# ===== Preprocessing Product Offering Data =====
+# Fill missing values in Target_Age_Group and Target_Income_Group
+product_offering_data['Target_Age_Group'] = product_offering_data['Target_Age_Group'].fillna('Unknown')
+product_offering_data['Target_Income_Group'] = product_offering_data['Target_Income_Group'].fillna('Unknown')
+
+# ===== Preprocessing Customer Feedback Data =====
+# Fill missing values in Satisfaction Score
+customer_feedback_data['Satisfaction_Score'] = customer_feedback_data['Satisfaction_Score'].fillna(customer_feedback_data['Satisfaction_Score'].mean())
+
+# Handle outliers in Satisfaction Score using IQR
+Q1 = customer_feedback_data['Satisfaction_Score'].quantile(0.25)
+Q3 = customer_feedback_data['Satisfaction_Score'].quantile(0.75)
+IQR = Q3 - Q1
+upper_bound = Q3 + 1.5 * IQR
+customer_feedback_data['Satisfaction_Score'] = customer_feedback_data['Satisfaction_Score'].apply(lambda x: min(x, upper_bound))
+
+# ===== Merge Datasets =====
+# Merge customer feedback data with transaction summary
+customer_data = pd.merge(customer_feedback_data, transaction_summary, on='Customer_ID', how='left')
+
+# ===== Feature Scaling =====
+# Normalize numerical features for clustering
+scaler = MinMaxScaler()
+numerical_features = ['Satisfaction_Score', 'Total_Transaction_Amount', 'Avg_Transaction_Amount', 'Transaction_Count']
+customer_data[numerical_features] = scaler.fit_transform(customer_data[numerical_features])
+
+# Output final processed dataset
+print("Final Merged Dataset:")
+print(customer_data.head())
+
+# Save the final dataset to a CSV file
+customer_data.to_csv("C:\\Users\\Angel Rabaja\\FinMark\\final_customer_data.csv", index=False)
