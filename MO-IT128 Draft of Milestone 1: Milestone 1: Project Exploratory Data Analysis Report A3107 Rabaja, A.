@@ -1,0 +1,99 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from textblob import TextBlob
+
+# Load datasets
+df1 = pd.read_csv('/Users/atrabaja/Documents/FinMark_DataMining/Customer_Feedback_Data.csv')
+df2 = pd.read_csv('/Users/atrabaja/Documents/FinMark_DataMining/Product_Offering_Data.csv')
+df3 = pd.read_csv('/Users/atrabaja/Documents/FinMark_DataMining/Transaction_Data.csv')
+
+# ==========================
+# Data Cleaning and Preparation
+# ==========================
+
+# Handling Missing Values
+# 1. Customer Feedback Data (df1)
+df1['Satisfaction_Score'] = df1['Satisfaction_Score'].fillna(df1['Satisfaction_Score'].median())
+
+# 2. Product Offering Data (df2)
+df2.drop(columns=['Target_Age_Group'], inplace=True)  # Dropping entirely missing column
+
+# 3. Transaction Data (df3)
+df3['Transaction_Amount'] = df3['Transaction_Amount'].fillna(df3['Transaction_Amount'].median())
+
+# Data Type Conversion
+df3['Transaction_Date'] = pd.to_datetime(df3['Transaction_Date'])
+
+# Removing Duplicates
+df1.drop_duplicates(subset='Customer_ID', inplace=True)
+df3.drop_duplicates(subset='Transaction_ID', inplace=True)
+
+# Outlier Detection and Removal (IQR method)
+Q1 = df3['Transaction_Amount'].quantile(0.25)
+Q3 = df3['Transaction_Amount'].quantile(0.75)
+IQR = Q3 - Q1
+df3 = df3[(df3['Transaction_Amount'] >= (Q1 - 1.5 * IQR)) & (df3['Transaction_Amount'] <= (Q3 + 1.5 * IQR))]
+
+# ==========================
+# Feature Engineering
+# ==========================
+
+# Aggregating Transaction Data
+transaction_features = df3.groupby('Customer_ID').agg({
+    'Transaction_Amount': ['sum', 'mean', 'count'],
+    'Transaction_Date': 'max'
+}).reset_index()
+
+# Renaming columns
+transaction_features.columns = ['Customer_ID', 'Total_Transaction_Amount', 'Average_Transaction_Amount', 
+                                'Transaction_Frequency', 'Recent_Transaction_Date']
+
+# Customer Loyalty Score
+df1['Customer_Loyalty_Score'] = (df1['Satisfaction_Score'] + df1['Likelihood_to_Recommend']) / 2
+
+# Sentiment Analysis on Feedback Comments
+df1['Sentiment_Score'] = df1['Feedback_Comments'].apply(lambda x: TextBlob(x).sentiment.polarity)
+
+# ==========================
+# Merging Datasets
+# ==========================
+
+# Merging feedback and transaction features
+final_df = pd.merge(df1, transaction_features, on='Customer_ID', how='left')
+
+# ==========================
+# Exploratory Data Analysis (EDA)
+# ==========================
+
+# Descriptive Statistics
+print(final_df.describe())
+
+# Distribution of Satisfaction Scores
+plt.hist(final_df['Satisfaction_Score'], bins=10, edgecolor='black')
+plt.title('Distribution of Satisfaction Scores')
+plt.xlabel('Satisfaction Score')
+plt.ylabel('Frequency')
+plt.show()
+
+# Distribution of Total Transaction Amounts
+plt.hist(final_df['Total_Transaction_Amount'], bins=20, edgecolor='black')
+plt.title('Distribution of Total Transaction Amounts')
+plt.xlabel('Total Transaction Amount')
+plt.ylabel('Frequency')
+plt.show()
+
+# Correlation Analysis
+correlation_matrix = final_df[['Satisfaction_Score', 'Likelihood_to_Recommend',
+                               'Total_Transaction_Amount', 'Customer_Loyalty_Score']].corr()
+
+sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm')
+plt.title('Correlation Matrix')
+plt.show()
+
+# ==========================
+# Documentation of Findings
+# ==========================
+
+# Key insights and next steps will be documented outside this script as part of the project report.
+print("Data preparation and exploratory analysis complete. Ready for clustering and segmentation in Milestone 2.")
