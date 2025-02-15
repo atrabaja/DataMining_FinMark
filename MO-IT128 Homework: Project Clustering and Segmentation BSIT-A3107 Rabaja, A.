@@ -1,0 +1,62 @@
+# Import necessary libraries
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.cluster import KMeans, DBSCAN
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.impute import SimpleImputer
+
+# 1. Data Loading Section
+final_df = pd.read_csv('/mnt/data/Final_Merged_Dataset.csv')
+
+# 2. Feature Selection Section
+features = final_df[['Total_Transaction_Amount', 'Average_Transaction_Amount', 'Transaction_Frequency', 'Customer_Loyalty_Score', 'Sentiment_Score']]
+
+# 3. Handling Missing Values Section
+imputer = SimpleImputer(strategy='mean')
+features_imputed = imputer.fit_transform(features)
+
+# 4. Data Standardization Section
+scaler = StandardScaler()
+scaled_features = scaler.fit_transform(features_imputed)
+
+# 5. Dimensionality Reduction Section
+pca = PCA(n_components=2)
+pca_features = pca.fit_transform(scaled_features)
+
+# 6. K-Means Clustering Section
+kmeans = KMeans(n_clusters=4, random_state=42)
+final_df['Cluster_KMeans'] = kmeans.fit_predict(pca_features)
+
+# 7. DBSCAN Clustering Section
+dbscan = DBSCAN(eps=0.5, min_samples=5)
+final_df['Cluster_DBSCAN'] = dbscan.fit_predict(pca_features)
+
+# 8. Visualization and Analysis Sections
+# K-Means Visualization Explanation:
+# The scatter plot displays customer clusters formed by K-Means. Each point represents a customer, and its color indicates the assigned cluster.
+# PCA Component 1 and Component 2 represent reduced dimensions from the original dataset, showing how customers group based on similar behaviors.
+plt.figure(figsize=(10, 6))
+plt.scatter(pca_features[:, 0], pca_features[:, 1], c=final_df['Cluster_KMeans'], cmap='viridis')
+plt.title('K-Means Clusters')
+plt.xlabel('PCA Component 1')
+plt.ylabel('PCA Component 2')
+plt.colorbar()
+plt.show()
+print("K-Means clusters are displayed using PCA-reduced dimensions. Each cluster represents similar customer groups.")
+
+# DBSCAN Visualization Explanation:
+# The scatter plot shows clusters formed by DBSCAN, where each color denotes a different cluster, and points marked as -1 are identified as noise.
+# DBSCAN excels in identifying irregularly shaped clusters and noise, which is reflected in this plot.
+plt.figure(figsize=(10, 6))
+plt.scatter(pca_features[:, 0], pca_features[:, 1], c=final_df['Cluster_DBSCAN'], cmap='plasma')
+plt.title('DBSCAN Clusters')
+plt.xlabel('PCA Component 1')
+plt.ylabel('PCA Component 2')
+plt.colorbar()
+plt.show()
+print("DBSCAN clusters are displayed, highlighting high-density customer groups and potential outliers (noise points).")
+
+# Recommendation Section
+print("Recommendation: K-Means is recommended due to clear, well-separated clusters that are easy to interpret and act upon.")
