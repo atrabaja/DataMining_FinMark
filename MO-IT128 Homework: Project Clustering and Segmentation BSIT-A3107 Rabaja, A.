@@ -1,62 +1,105 @@
-# Import necessary libraries
+# Import essential libraries for data manipulation, visualization, clustering, scaling, and dimensionality reduction.
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.cluster import KMeans, DBSCAN
+from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.impute import SimpleImputer
+from sklearn.metrics import silhouette_score
 
 # 1. Data Loading Section
-final_df = pd.read_csv('/mnt/data/Final_Merged_Dataset.csv')
+# Explanation: Load the final merged dataset for clustering analysis.
+final_df = pd.read_csv('/Users/atrabaja/Documents/FinMark_DataMining/Final_Merged_Dataset.csv')
+print("Dataset loaded successfully. Shape:", final_df.shape)
+print(final_df.head())
 
 # 2. Feature Selection Section
+# Explanation: Select relevant features for clustering based on variation and correlation analysis.
 features = final_df[['Total_Transaction_Amount', 'Average_Transaction_Amount', 'Transaction_Frequency', 'Customer_Loyalty_Score', 'Sentiment_Score']]
+print("Selected features for clustering:")
+print(features.head())
 
 # 3. Handling Missing Values Section
+# Explanation: Handle missing values using mean imputation to avoid errors in PCA and clustering.
 imputer = SimpleImputer(strategy='mean')
 features_imputed = imputer.fit_transform(features)
+print("Missing values handled. First 5 rows:")
+print(pd.DataFrame(features_imputed, columns=features.columns).head())
 
 # 4. Data Standardization Section
+# Explanation: Standardize data to ensure each feature contributes equally to clustering.
 scaler = StandardScaler()
 scaled_features = scaler.fit_transform(features_imputed)
+print("Features standardized. First 5 rows:")
+print(pd.DataFrame(scaled_features, columns=features.columns).head())
 
-# 5. Dimensionality Reduction Section
+# 5. Feature Correlation Analysis
+# Explanation: Identify feature pairings with high correlation to understand dependencies.
+correlation_matrix = pd.DataFrame(scaled_features, columns=features.columns).corr()
+print("Feature correlation matrix:")
+print(correlation_matrix)
+
+# Identify feature pairs with high correlation (above 0.7)
+high_corr_features = correlation_matrix.unstack().sort_values(ascending=False)
+high_corr_features = high_corr_features[high_corr_features < 1].drop_duplicates()
+print("Highly correlated feature pairs:")
+print(high_corr_features[high_corr_features > 0.7])
+
+# 6. Dimensionality Reduction Section
+# Explanation: Use PCA to reduce the dataset to key components while retaining maximum variance.
 pca = PCA(n_components=2)
 pca_features = pca.fit_transform(scaled_features)
+print("PCA applied. Explained variance ratio:", pca.explained_variance_ratio_)
+print("First 5 PCA transformed features:")
+print(pd.DataFrame(pca_features, columns=['PCA1', 'PCA2']).head())
 
-# 6. K-Means Clustering Section
-kmeans = KMeans(n_clusters=4, random_state=42)
+# 7. Elbow Method for Optimal Clusters
+# Explanation: Determine the ideal number of clusters using the Elbow method (range 5 to 10).
+inertia = []
+k_values = range(5, 11)
+for k in k_values:
+    kmeans = KMeans(n_clusters=k, random_state=42)
+    kmeans.fit(pca_features)
+    inertia.append(kmeans.inertia_)
+
+plt.figure(figsize=(8, 5))
+plt.plot(k_values, inertia, marker='o', linestyle='--')
+plt.xlabel('Number of Clusters')
+plt.ylabel('Inertia')
+plt.title('Elbow Method to Determine Optimal Clusters')
+plt.show()
+print("Elbow method applied. Observe the plot to identify the optimal cluster count.")
+
+# 8. K-Means Clustering Section
+# Explanation: Apply K-Means clustering with the optimal number of clusters from the Elbow method.
+optimal_k = 5  # Adjust based on the elbow method observation
+kmeans = KMeans(n_clusters=optimal_k, random_state=42)
 final_df['Cluster_KMeans'] = kmeans.fit_predict(pca_features)
+print(f"K-Means clustering applied with {optimal_k} clusters. Cluster distribution:")
+print(final_df['Cluster_KMeans'].value_counts())
+print("First 5 rows with cluster assignments:")
+print(final_df[['Cluster_KMeans']].head())
 
-# 7. DBSCAN Clustering Section
-dbscan = DBSCAN(eps=0.5, min_samples=5)
-final_df['Cluster_DBSCAN'] = dbscan.fit_predict(pca_features)
+# 9. Cluster Comparison Section
+# Explanation: Compare clusters to identify the most distinct group in terms of behavior.
+cluster_summary = final_df.groupby('Cluster_KMeans')[['Total_Transaction_Amount', 'Average_Transaction_Amount', 'Transaction_Frequency', 'Customer_Loyalty_Score', 'Sentiment_Score']].mean()
+print("Cluster characteristic comparison:")
+print(cluster_summary)
 
-# 8. Visualization and Analysis Sections
-# K-Means Visualization Explanation:
-# The scatter plot displays customer clusters formed by K-Means. Each point represents a customer, and its color indicates the assigned cluster.
-# PCA Component 1 and Component 2 represent reduced dimensions from the original dataset, showing how customers group based on similar behaviors.
+# 10. Visualization of Clusters
+# Explanation: Visualize customer segmentation using PCA components.
 plt.figure(figsize=(10, 6))
-plt.scatter(pca_features[:, 0], pca_features[:, 1], c=final_df['Cluster_KMeans'], cmap='viridis')
-plt.title('K-Means Clusters')
+plt.scatter(pca_features[:, 0], pca_features[:, 1], c=final_df['Cluster_KMeans'], cmap='viridis', edgecolors='k')
+plt.title('K-Means Customer Segments')
 plt.xlabel('PCA Component 1')
 plt.ylabel('PCA Component 2')
-plt.colorbar()
+plt.colorbar(label='Cluster')
 plt.show()
-print("K-Means clusters are displayed using PCA-reduced dimensions. Each cluster represents similar customer groups.")
+print("K-Means clusters visualized using PCA-reduced dimensions.")
 
-# DBSCAN Visualization Explanation:
-# The scatter plot shows clusters formed by DBSCAN, where each color denotes a different cluster, and points marked as -1 are identified as noise.
-# DBSCAN excels in identifying irregularly shaped clusters and noise, which is reflected in this plot.
-plt.figure(figsize=(10, 6))
-plt.scatter(pca_features[:, 0], pca_features[:, 1], c=final_df['Cluster_DBSCAN'], cmap='plasma')
-plt.title('DBSCAN Clusters')
-plt.xlabel('PCA Component 1')
-plt.ylabel('PCA Component 2')
-plt.colorbar()
-plt.show()
-print("DBSCAN clusters are displayed, highlighting high-density customer groups and potential outliers (noise points).")
-
-# Recommendation Section
-print("Recommendation: K-Means is recommended due to clear, well-separated clusters that are easy to interpret and act upon.")
+# 11. Recommendation Section
+# Explanation: Provide insights into the best-performing customer segment for business action.
+best_cluster = cluster_summary.idxmax().to_dict()
+print("Recommended customer cluster based on highest values per feature:")
+print(best_cluster)
