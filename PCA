@@ -1,0 +1,94 @@
+# Import essential libraries for data manipulation, visualization, clustering, scaling, and dimensionality reduction.
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.impute import SimpleImputer
+from sklearn.metrics import silhouette_score
+
+# 1. Data Loading Section
+final_df = pd.read_csv('/Users/atrabaja/Documents/FinMark_DataMining/Final_Merged_Dataset.csv')
+print("Dataset loaded successfully. Shape:", final_df.shape)
+print(final_df.head())
+
+# 2. Feature Selection Section
+features = final_df[['Total_Transaction_Amount', 'Average_Transaction_Amount', 'Transaction_Frequency', 'Customer_Loyalty_Score', 'Sentiment_Score']]
+print("Selected features for clustering:")
+print(features.head())
+
+# 3. Handling Missing Values Section
+imputer = SimpleImputer(strategy='mean')
+features_imputed = imputer.fit_transform(features)
+print("Missing values handled. First 5 rows:")
+print(pd.DataFrame(features_imputed, columns=features.columns).head())
+
+# 4. Data Standardization Section
+scaler = StandardScaler()
+scaled_features = scaler.fit_transform(features_imputed)
+print("Features standardized. First 5 rows:")
+print(pd.DataFrame(scaled_features, columns=features.columns).head())
+
+# 5. Feature Correlation Analysis
+correlation_matrix = pd.DataFrame(scaled_features, columns=features.columns).corr()
+print("Feature correlation matrix:")
+print(correlation_matrix)
+
+# Identify feature pairs with high correlation (above 0.7)
+high_corr_features = correlation_matrix.unstack().sort_values(ascending=False)
+high_corr_features = high_corr_features[high_corr_features < 1].drop_duplicates()
+print("Highly correlated feature pairs:")
+print(high_corr_features[high_corr_features > 0.7])
+
+# 6. Dimensionality Reduction Section
+pca = PCA(n_components=2)
+pca_features = pca.fit_transform(scaled_features)
+print("PCA applied. Explained variance ratio:", pca.explained_variance_ratio_)
+print("First 5 PCA transformed features:")
+print(pd.DataFrame(pca_features, columns=['PCA1', 'PCA2']).head())
+
+# Extract PCA Loadings
+pca_loadings = pd.DataFrame(pca.components_, columns=features.columns, index=['PCA1', 'PCA2'])
+print("PCA Loadings:", pca_loadings)
+
+# Identify the top 2 features with the highest absolute loadings in PCA1 and PCA2
+top_features_pca1 = pca_loadings.loc['PCA1'].abs().sort_values(ascending=False).head(2)
+top_features_pca2 = pca_loadings.loc['PCA2'].abs().sort_values(ascending=False).head(2)
+print("Top Features contributing to PCA1:", top_features_pca1)
+print("Top Features contributing to PCA2:", top_features_pca2)
+
+# 7. Elbow Method for Optimal Clusters
+inertia = []
+k_values = range(5, 11)
+for k in k_values:
+    kmeans = KMeans(n_clusters=k, random_state=42)
+    kmeans.fit(pca_features)
+    inertia.append(kmeans.inertia_)
+
+plt.figure(figsize=(8, 5))
+plt.plot(k_values, inertia, marker='o', linestyle='--')
+plt.xlabel('Number of Clusters')
+plt.ylabel('Inertia')
+plt.title('Elbow Method to Determine Optimal Clusters')
+plt.show()
+
+# 8. K-Means Clustering Section
+optimal_k = 5  # Adjust based on the elbow method observation
+kmeans = KMeans(n_clusters=optimal_k, random_state=42)
+final_df['Cluster_KMeans'] = kmeans.fit_predict(pca_features)
+print(f"K-Means clustering applied with {optimal_k} clusters. Cluster distribution:")
+print(final_df['Cluster_KMeans'].value_counts())
+
+# Naming Clusters Based on PCA Features
+cluster_labels = {
+    0: f"High {top_features_pca1.index[0]}, High {top_features_pca2.index[0]}",
+    1: f"Low {top_features_pca1.index[0]}, High {top_features_pca2.index[1]}",
+    2: f"Moderate {top_features_pca1.index[1]}, Moderate {top_features_pca2.index[0]}",
+    3: f"High {top_features_pca1.index[1]}, Low {top_features_pca2.index[1]}",
+    4: f"Low {top_features_pca1.index[0]}, Low {top_features_pca2.index[1]}"
+}
+
+final_df['Cluster_Label'] = final_df['Cluster_KMeans'].map(cluster_labels)
+print("Final Customer Segmentation with PCA-based Labels:")
+print(final_df[['Cluster_KMeans', 'Cluster_Label']].head())
